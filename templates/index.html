@@ -679,6 +679,148 @@
 
     .hidden { display: none !important; }
 
+    /* ── Mode toggle (SINGLE / BATCH) ── */
+    .mode-toggle {
+      display: flex;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      background: var(--surface2);
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 8px 0;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+
+    .mode-btn:first-child { border-right: 1px solid var(--border); }
+
+    .mode-btn.active-yt { background: var(--accent-glow-yt); color: var(--accent-yt); }
+    .mode-btn.active-tt { background: var(--accent-glow-tt); color: var(--accent-tt); }
+    .mode-btn.active-ig { background: var(--accent-glow-ig); color: var(--accent-ig); }
+
+    /* ── Batch URL textarea ── */
+    textarea.batch-urls {
+      width: 100%;
+      min-height: 110px;
+      resize: vertical;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 11px 14px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.7;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    textarea.batch-urls:focus { border-color: var(--border-light); }
+    textarea.batch-urls::placeholder { color: var(--text-muted); }
+
+    /* ── Batch queue ── */
+    .batch-queue {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .batch-row {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-rows: auto 6px;
+      column-gap: 12px;
+      row-gap: 6px;
+    }
+
+    .batch-row-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .batch-row-url {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .batch-row-status {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.5px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .bs-pending  { background: rgba(100,100,120,0.15); color: var(--text-muted); border: 1px solid var(--border); }
+    .bs-running  { background: rgba(0,140,255,0.1);    color: #5ab4ff;          border: 1px solid rgba(0,140,255,0.25); }
+    .bs-done     { background: rgba(0,200,120,0.1);    color: #00c878;          border: 1px solid rgba(0,200,120,0.25); }
+    .bs-error    { background: rgba(255,50,50,0.08);   color: #ff6060;          border: 1px solid rgba(255,50,50,0.25); }
+
+    .batch-row-bar-wrap {
+      grid-column: 1 / -1;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .batch-row-bar {
+      height: 100%;
+      width: 0%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    .bar-yt { background: var(--accent-yt); }
+    .bar-tt { background: var(--accent-tt); }
+    .bar-ig { background: var(--accent-ig); }
+
+    .batch-row-msg {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--text-muted);
+      align-self: center;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    /* ── Batch summary bar ── */
+    .batch-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
     /* Responsive */
     @media (max-width: 520px) {
       .options-grid { grid-template-columns: 1fr; }
@@ -723,6 +865,15 @@
 
   <!-- ======================== YOUTUBE PANEL ======================== -->
   <div id="yt-panel">
+
+    <!-- Mode toggle -->
+    <div class="mode-toggle">
+      <button class="mode-btn active-yt" id="yt-mode-single" onclick="switchMode('yt','single')">SINGLE</button>
+      <button class="mode-btn" id="yt-mode-batch"  onclick="switchMode('yt','batch')">BATCH</button>
+    </div>
+
+    <!-- ── SINGLE mode ── -->
+    <div id="yt-single-view">
 
     <!-- URL Input -->
     <div class="card">
@@ -875,11 +1026,74 @@
       </div>
     </div>
 
+  </div><!-- /yt-single-view -->
+
+    <!-- ── BATCH mode ── -->
+    <div id="yt-batch-view" style="display:none">
+      <div class="card">
+        <div class="card-title">— Batch URLs</div>
+        <div class="label" style="margin-bottom:6px;">URLs (one per line)</div>
+        <textarea class="batch-urls" id="yt-batch-urls" placeholder="https://youtube.com/watch?v=…&#10;https://youtube.com/shorts/…&#10;https://youtu.be/…"></textarea>
+
+        <div class="options-grid" style="margin-top:14px;">
+          <div class="span2">
+            <div class="label">Resolution</div>
+            <select id="yt-batch-res">
+              <option value="2160">2160p (4K)</option>
+              <option value="1440">1440p</option>
+              <option value="1080" selected>1080p</option>
+              <option value="720">720p</option>
+              <option value="480">480p</option>
+              <option value="360">360p</option>
+            </select>
+          </div>
+
+          <div class="span2">
+            <label class="toggle-row">
+              <input type="checkbox" id="yt-batch-audio" onchange="ytBatchToggleAudio()">
+              <span class="toggle-label">Audio only (MP3)</span>
+            </label>
+          </div>
+
+          <div class="span2" id="yt-batch-bitrate-row" style="display:none">
+            <div class="label">Audio Bitrate</div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <label class="bitrate-opt" data-platform="yt-batch"><input type="radio" name="yt-batch-bitrate" value="64k"><span>64 kbps</span></label>
+              <label class="bitrate-opt" data-platform="yt-batch"><input type="radio" name="yt-batch-bitrate" value="96k"><span>96 kbps</span></label>
+              <label class="bitrate-opt" data-platform="yt-batch"><input type="radio" name="yt-batch-bitrate" value="128k"><span>128 kbps</span></label>
+              <label class="bitrate-opt selected-yt" data-platform="yt-batch"><input type="radio" name="yt-batch-bitrate" value="192k" checked><span>192 kbps</span></label>
+              <label class="bitrate-opt" data-platform="yt-batch"><input type="radio" name="yt-batch-bitrate" value="256k"><span>256 kbps</span></label>
+              <label class="bitrate-opt" data-platform="yt-batch"><input type="radio" name="yt-batch-bitrate" value="320k"><span>320 kbps</span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+        <button class="btn btn-yt btn-full" id="yt-batch-btn" onclick="startBatch('yt')">⬇ START BATCH</button>
+        <div class="alert" id="yt-batch-alert"></div>
+      </div>
+
+      <div id="yt-batch-queue" class="batch-queue"></div>
+      <div id="yt-batch-summary" class="batch-summary" style="display:none">
+        <span id="yt-batch-counts"></span>
+        <button class="btn" onclick="clearBatchDone('yt')" style="font-size:9px; padding:4px 10px;">CLEAR DONE</button>
+      </div>
+    </div><!-- /yt-batch-view -->
+
   </div><!-- /yt-panel -->
 
 
   <!-- ======================== TIKTOK PANEL ======================== -->
   <div id="tt-panel" class="tt-panel" style="display:none;">
+
+    <!-- Mode toggle -->
+    <div class="mode-toggle">
+      <button class="mode-btn active-tt" id="tt-mode-single" onclick="switchMode('tt','single')">SINGLE</button>
+      <button class="mode-btn" id="tt-mode-batch"  onclick="switchMode('tt','batch')">BATCH</button>
+    </div>
+
+    <!-- ── SINGLE mode ── -->
+    <div id="tt-single-view">
 
     <!-- URL Input -->
     <div class="card">
@@ -1027,11 +1241,79 @@
       </div>
     </div>
 
+  </div><!-- /tt-single-view -->
+
+    <!-- ── BATCH mode ── -->
+    <div id="tt-batch-view" style="display:none">
+      <div class="card">
+        <div class="card-title">— Batch TikTok URLs</div>
+        <div class="platform-note">One URL per line. Watermark removal applied to all.</div>
+        <div class="label" style="margin-bottom:6px;">URLs (one per line)</div>
+        <textarea class="batch-urls" id="tt-batch-urls" placeholder="https://www.tiktok.com/@user/video/…&#10;https://vm.tiktok.com/…"></textarea>
+
+        <div class="options-grid" style="margin-top:14px;">
+          <div class="span2">
+            <div class="label">Quality</div>
+            <select id="tt-batch-res">
+              <option value="1080" selected>1080p</option>
+              <option value="720">720p</option>
+              <option value="480">480p</option>
+            </select>
+          </div>
+
+          <div class="span2">
+            <label class="toggle-row">
+              <input type="checkbox" id="tt-batch-audio" onchange="ttBatchToggleAudio()">
+              <span class="toggle-label">Audio only (MP3)</span>
+            </label>
+          </div>
+
+          <div class="span2" id="tt-batch-bitrate-row" style="display:none">
+            <div class="label">Audio Bitrate</div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <label class="bitrate-opt" data-platform="tt-batch"><input type="radio" name="tt-batch-bitrate" value="64k"><span>64 kbps</span></label>
+              <label class="bitrate-opt" data-platform="tt-batch"><input type="radio" name="tt-batch-bitrate" value="96k"><span>96 kbps</span></label>
+              <label class="bitrate-opt" data-platform="tt-batch"><input type="radio" name="tt-batch-bitrate" value="128k"><span>128 kbps</span></label>
+              <label class="bitrate-opt selected-tt" data-platform="tt-batch"><input type="radio" name="tt-batch-bitrate" value="192k" checked><span>192 kbps</span></label>
+              <label class="bitrate-opt" data-platform="tt-batch"><input type="radio" name="tt-batch-bitrate" value="256k"><span>256 kbps</span></label>
+              <label class="bitrate-opt" data-platform="tt-batch"><input type="radio" name="tt-batch-bitrate" value="320k"><span>320 kbps</span></label>
+            </div>
+          </div>
+
+          <div class="span2">
+            <label class="toggle-row">
+              <input type="checkbox" id="tt-batch-nowm" checked>
+              <span class="toggle-label">Remove watermark (when possible)</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+        <button class="btn btn-tt btn-full" id="tt-batch-btn" onclick="startBatch('tt')">⬇ START BATCH</button>
+        <div class="alert" id="tt-batch-alert"></div>
+      </div>
+
+      <div id="tt-batch-queue" class="batch-queue"></div>
+      <div id="tt-batch-summary" class="batch-summary" style="display:none">
+        <span id="tt-batch-counts"></span>
+        <button class="btn" onclick="clearBatchDone('tt')" style="font-size:9px; padding:4px 10px;">CLEAR DONE</button>
+      </div>
+    </div><!-- /tt-batch-view -->
+
   </div><!-- /tt-panel -->
 
 
   <!-- ======================== INSTAGRAM PANEL ======================== -->
   <div id="ig-panel" class="ig-panel" style="display:none;">
+
+    <!-- Mode toggle -->
+    <div class="mode-toggle">
+      <button class="mode-btn active-ig" id="ig-mode-single" onclick="switchMode('ig','single')">SINGLE</button>
+      <button class="mode-btn" id="ig-mode-batch"  onclick="switchMode('ig','batch')">BATCH</button>
+    </div>
+
+    <!-- ── SINGLE mode ── -->
+    <div id="ig-single-view">
 
     <!-- URL Input -->
     <div class="card">
@@ -1171,6 +1453,58 @@
         <button class="btn" onclick="downloadTranscript('ig')">⬇ SAVE .TXT</button>
       </div>
     </div>
+
+  </div><!-- /ig-single-view -->
+
+    <!-- ── BATCH mode ── -->
+    <div id="ig-batch-view" style="display:none">
+      <div class="card">
+        <div class="card-title">— Batch Instagram URLs</div>
+        <div class="platform-note" style="border-left-color:var(--accent-ig)">One URL per line. Private content requires cookies.</div>
+        <div class="label" style="margin-bottom:6px;">URLs (one per line)</div>
+        <textarea class="batch-urls" id="ig-batch-urls" placeholder="https://www.instagram.com/reel/…&#10;https://www.instagram.com/p/…"></textarea>
+
+        <div class="options-grid" style="margin-top:14px;">
+          <div class="span2">
+            <div class="label">Quality</div>
+            <select id="ig-batch-res">
+              <option value="1080" selected>1080p</option>
+              <option value="720">720p</option>
+              <option value="480">480p</option>
+            </select>
+          </div>
+
+          <div class="span2">
+            <label class="toggle-row">
+              <input type="checkbox" id="ig-batch-audio" onchange="igBatchToggleAudio()">
+              <span class="toggle-label">Audio only (MP3)</span>
+            </label>
+          </div>
+
+          <div class="span2" id="ig-batch-bitrate-row" style="display:none">
+            <div class="label">Audio Bitrate</div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <label class="bitrate-opt" data-platform="ig-batch"><input type="radio" name="ig-batch-bitrate" value="64k"><span>64 kbps</span></label>
+              <label class="bitrate-opt" data-platform="ig-batch"><input type="radio" name="ig-batch-bitrate" value="96k"><span>96 kbps</span></label>
+              <label class="bitrate-opt" data-platform="ig-batch"><input type="radio" name="ig-batch-bitrate" value="128k"><span>128 kbps</span></label>
+              <label class="bitrate-opt selected-ig" data-platform="ig-batch"><input type="radio" name="ig-batch-bitrate" value="192k" checked><span>192 kbps</span></label>
+              <label class="bitrate-opt" data-platform="ig-batch"><input type="radio" name="ig-batch-bitrate" value="256k"><span>256 kbps</span></label>
+              <label class="bitrate-opt" data-platform="ig-batch"><input type="radio" name="ig-batch-bitrate" value="320k"><span>320 kbps</span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+        <button class="btn btn-ig btn-full" id="ig-batch-btn" onclick="startBatch('ig')">⬇ START BATCH</button>
+        <div class="alert" id="ig-batch-alert"></div>
+      </div>
+
+      <div id="ig-batch-queue" class="batch-queue"></div>
+      <div id="ig-batch-summary" class="batch-summary" style="display:none">
+        <span id="ig-batch-counts"></span>
+        <button class="btn" onclick="clearBatchDone('ig')" style="font-size:9px; padding:4px 10px;">CLEAR DONE</button>
+      </div>
+    </div><!-- /ig-batch-view -->
 
   </div><!-- /ig-panel -->
 
@@ -1814,20 +2148,8 @@ function downloadTranscript(platform) {
 }
 
 // =====================================================================
-// BITRATE PILL CLICK HANDLERS
+// BITRATE PILL CLICK HANDLERS (single + batch)
 // =====================================================================
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.bitrate-opt').forEach(pill => {
-    pill.addEventListener('click', () => {
-      const platform = pill.dataset.platform;
-      const selClass = `selected-${platform}`;
-      document.querySelectorAll(`.bitrate-opt[data-platform="${platform}"]`)
-        .forEach(p => p.classList.remove(selClass));
-      pill.classList.add(selClass);
-      pill.querySelector('input[type="radio"]').checked = true;
-    });
-  });
-});
 
 // =====================================================================
 // KEYBOARD SHORTCUTS
@@ -1836,6 +2158,277 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.id === 'yt-url') ytLoadInfo();
   if (e.key === 'Enter' && e.target.id === 'tt-url') ttLoadInfo();
   if (e.key === 'Enter' && e.target.id === 'ig-url') igLoadInfo();
+});
+
+// =====================================================================
+// BATCH MODE
+// =====================================================================
+
+// Per-platform batch state: array of job objects
+const batchState = {
+  yt: [],
+  tt: [],
+  ig: [],
+};
+
+const BATCH_CONCURRENCY = 3;
+
+function switchMode(platform, mode) {
+  const isBatch = mode === 'batch';
+  document.getElementById(`${platform}-single-view`).style.display = isBatch ? 'none' : 'block';
+  document.getElementById(`${platform}-batch-view`).style.display  = isBatch ? 'block' : 'none';
+
+  const activeClass = `active-${platform}`;
+  const sBtn = document.getElementById(`${platform}-mode-single`);
+  const bBtn = document.getElementById(`${platform}-mode-batch`);
+  sBtn.className = `mode-btn${isBatch ? '' : ' ' + activeClass}`;
+  bBtn.className = `mode-btn${isBatch ? ' ' + activeClass : ''}`;
+}
+
+function ytBatchToggleAudio() {
+  const on = document.getElementById('yt-batch-audio').checked;
+  document.getElementById('yt-batch-res').disabled = on;
+  document.getElementById('yt-batch-bitrate-row').style.display = on ? 'block' : 'none';
+}
+function ttBatchToggleAudio() {
+  const on = document.getElementById('tt-batch-audio').checked;
+  document.getElementById('tt-batch-res').disabled = on;
+  document.getElementById('tt-batch-bitrate-row').style.display = on ? 'block' : 'none';
+}
+function igBatchToggleAudio() {
+  const on = document.getElementById('ig-batch-audio').checked;
+  document.getElementById('ig-batch-res').disabled = on;
+  document.getElementById('ig-batch-bitrate-row').style.display = on ? 'block' : 'none';
+}
+
+function getBatchBitrate(platform) {
+  const checked = document.querySelector(`input[name="${platform}-batch-bitrate"]:checked`);
+  return checked ? checked.value : '192k';
+}
+
+// Build shared form-data options for a batch job
+function batchFormData(platform, url) {
+  const fd = new FormData();
+  fd.append('url', url);
+
+  if (platform === 'yt') {
+    const audioOnly = document.getElementById('yt-batch-audio').checked;
+    const res = document.getElementById('yt-batch-res').value;
+    fd.append('resolution', res);
+    if (audioOnly) fd.append('audio_only', 'on');
+    fd.append('audio_bitrate', getBatchBitrate('yt'));
+  } else if (platform === 'tt') {
+    const audioOnly = document.getElementById('tt-batch-audio').checked;
+    const res = document.getElementById('tt-batch-res').value;
+    fd.append('resolution', res);
+    fd.append('platform', 'tiktok');
+    if (audioOnly) fd.append('audio_only', 'on');
+    fd.append('audio_bitrate', getBatchBitrate('tt'));
+    if (document.getElementById('tt-batch-nowm').checked) fd.append('no_watermark', 'on');
+  } else if (platform === 'ig') {
+    const audioOnly = document.getElementById('ig-batch-audio').checked;
+    const res = document.getElementById('ig-batch-res').value;
+    fd.append('resolution', res);
+    fd.append('platform', 'instagram');
+    if (audioOnly) fd.append('audio_only', 'on');
+    fd.append('audio_bitrate', getBatchBitrate('ig'));
+  }
+  return fd;
+}
+
+function startBatch(platform) {
+  const raw = document.getElementById(`${platform}-batch-urls`).value;
+  const urls = raw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+
+  if (!urls.length) {
+    showAlert(`${platform}-batch-alert`, 'Paste at least one URL.', 'err');
+    return;
+  }
+  hideAlert(`${platform}-batch-alert`);
+
+  // Disable start button while running
+  const btn = document.getElementById(`${platform}-batch-btn`);
+  btn.disabled = true;
+  btn.textContent = 'RUNNING…';
+
+  // Build job list
+  batchState[platform] = urls.map((url, i) => ({
+    id: i,
+    url,
+    status: 'pending',  // pending | running | done | error
+    jobId: null,
+    percent: 0,
+    msg: 'Waiting…',
+  }));
+
+  renderBatchQueue(platform);
+  runBatchQueue(platform);
+}
+
+function renderBatchQueue(platform) {
+  const container = document.getElementById(`${platform}-batch-queue`);
+  container.innerHTML = '';
+  batchState[platform].forEach(job => {
+    const row = document.createElement('div');
+    row.className = 'batch-row';
+    row.id = `${platform}-brow-${job.id}`;
+    row.innerHTML = `
+      <div class="batch-row-info">
+        <span class="batch-row-url" title="${job.url}">${job.url}</span>
+        <span class="batch-row-status bs-pending" id="${platform}-bstatus-${job.id}">PENDING</span>
+      </div>
+      <span class="batch-row-msg" id="${platform}-bmsg-${job.id}">—</span>
+      <div class="batch-row-bar-wrap">
+        <div class="batch-row-bar bar-${platform}" id="${platform}-bbar-${job.id}" style="width:0%"></div>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+  updateBatchSummary(platform);
+}
+
+function updateBatchRow(platform, job) {
+  const statusEl = document.getElementById(`${platform}-bstatus-${job.id}`);
+  const msgEl    = document.getElementById(`${platform}-bmsg-${job.id}`);
+  const barEl    = document.getElementById(`${platform}-bbar-${job.id}`);
+  if (!statusEl) return;
+
+  const statusMap = {
+    pending: ['PENDING', 'bs-pending'],
+    running: ['RUNNING', 'bs-running'],
+    done:    ['DONE',    'bs-done'],
+    error:   ['ERROR',   'bs-error'],
+  };
+  const [label, cls] = statusMap[job.status] || ['?', 'bs-pending'];
+  statusEl.textContent = label;
+  statusEl.className = `batch-row-status ${cls}`;
+  if (msgEl) msgEl.textContent = job.msg || '—';
+  if (barEl) barEl.style.width = `${job.percent || 0}%`;
+}
+
+function updateBatchSummary(platform) {
+  const jobs = batchState[platform];
+  if (!jobs.length) return;
+  const done  = jobs.filter(j => j.status === 'done').length;
+  const err   = jobs.filter(j => j.status === 'error').length;
+  const total = jobs.length;
+  const summaryEl = document.getElementById(`${platform}-batch-summary`);
+  const countsEl  = document.getElementById(`${platform}-batch-counts`);
+  summaryEl.style.display = 'flex';
+  countsEl.textContent = `${done} / ${total} done${err ? `  ·  ${err} errors` : ''}`;
+
+  // Re-enable start button when all finished
+  const allDone = jobs.every(j => j.status === 'done' || j.status === 'error');
+  if (allDone) {
+    const btn = document.getElementById(`${platform}-batch-btn`);
+    btn.disabled = false;
+    btn.textContent = '⬇ START BATCH';
+  }
+}
+
+function clearBatchDone(platform) {
+  batchState[platform] = batchState[platform].filter(j => j.status !== 'done');
+  // Re-index ids
+  batchState[platform].forEach((j, i) => { j.id = i; });
+  renderBatchQueue(platform);
+}
+
+// Runs up to BATCH_CONCURRENCY jobs at once, launching next when one finishes
+function runBatchQueue(platform) {
+  const jobs = batchState[platform];
+
+  function launchNext() {
+    const running = jobs.filter(j => j.status === 'running').length;
+    const pending = jobs.filter(j => j.status === 'pending');
+    const slots = BATCH_CONCURRENCY - running;
+    for (let i = 0; i < Math.min(slots, pending.length); i++) {
+      runBatchJob(platform, pending[i], launchNext);
+    }
+  }
+
+  launchNext();
+}
+
+async function runBatchJob(platform, job, onFinish) {
+  job.status = 'running';
+  job.msg = 'Starting…';
+  updateBatchRow(platform, job);
+
+  const fd = batchFormData(platform, job.url);
+
+  try {
+    const r = await fetch('/start_download', { method: 'POST', body: fd });
+    const { job_id, error } = await r.json();
+    if (error) throw new Error(error);
+    job.jobId = job_id;
+    trackBatchJob(platform, job, onFinish);
+  } catch (err) {
+    job.status = 'error';
+    job.msg = err.message.slice(0, 60);
+    job.percent = 0;
+    updateBatchRow(platform, job);
+    updateBatchSummary(platform);
+    onFinish();
+  }
+}
+
+function trackBatchJob(platform, job, onFinish) {
+  const es = new EventSource(`/job_status/${job.jobId}`);
+
+  es.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+    job.percent = d.percent || 0;
+    job.msg = d.speed ? `${d.speed}  ETA ${d.eta || '—'}` : (d.msg || '');
+    updateBatchRow(platform, job);
+
+    if (d.done) {
+      es.close();
+      if (d.error || d.status === 'error') {
+        job.status = 'error';
+        job.msg = (d.error || 'Unknown error').slice(0, 60);
+        job.percent = 0;
+      } else {
+        job.status = 'done';
+        job.msg = 'Done';
+        job.percent = 100;
+        // Auto-trigger browser download
+        setTimeout(() => {
+          const a = document.createElement('a');
+          a.href = `/download_file/${job.jobId}`;
+          a.click();
+        }, 300);
+      }
+      updateBatchRow(platform, job);
+      updateBatchSummary(platform);
+      onFinish();
+    }
+  };
+
+  es.onerror = () => {
+    es.close();
+    job.status = 'error';
+    job.msg = 'Connection lost';
+    job.percent = 0;
+    updateBatchRow(platform, job);
+    updateBatchSummary(platform);
+    onFinish();
+  };
+}
+
+// Wire up all bitrate pills (single + batch)
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.bitrate-opt').forEach(pill => {
+    pill.addEventListener('click', () => {
+      const platform = pill.dataset.platform;
+      // batch pills use e.g. "yt-batch"; selected class is always "selected-yt"
+      const baseColor = platform.replace('-batch', '');
+      const selClass = `selected-${baseColor}`;
+      document.querySelectorAll(`.bitrate-opt[data-platform="${platform}"]`)
+        .forEach(p => p.classList.remove(selClass));
+      pill.classList.add(selClass);
+      pill.querySelector('input[type="radio"]').checked = true;
+    });
+  });
 });
 </script>
 </body>
