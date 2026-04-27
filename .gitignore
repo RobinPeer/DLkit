@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+env/
+
+# Downloaded files
+downloads/
+
+# Cookies (may contain session tokens — keep private)
+cookies.txt
+
+# Large binaries — users must supply these themselves
+deno.exe
+ffmpeg.exe
+ffprobe.exe
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.user
+
+# Logs
+*.log

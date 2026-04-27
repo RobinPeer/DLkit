@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DLKIT — Video Downloader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0f;
+      --surface: #141417;
+      --surface2: #1c1c21;
+      --border: #2a2a32;
+      --border-light: #3a3a45;
+      --text: #e8e8f0;
+      --text-muted: #666675;
+      --text-dim: #9999aa;
+      --accent-yt: #ff2d2d;
+      --accent-tt: #00f0c8;
+      --accent-ig: #e1306c;
+      --accent-glow-yt: rgba(255, 45, 45, 0.15);
+      --accent-glow-tt: rgba(0, 240, 200, 0.15);
+      --accent-glow-ig: rgba(225, 48, 108, 0.15);
+      --mono: 'Space Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+      --radius: 8px;
+      --radius-lg: 14px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 80px;
+    }
+
+    /* Background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 680px;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .logo {
+      font-family: var(--mono);
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: var(--text);
+    }
+
+    .logo span {
+      color: var(--accent-yt);
+    }
+
+    .logo-sub {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 6px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-transform: uppercase;
+    }
+
+    /* Platform tabs */
+    .platform-tabs {
+      display: flex;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: 24px;
+      background: var(--surface);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 12px 20px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      position: relative;
+    }
+
+    .tab-btn.active-yt {
+      background: var(--accent-glow-yt);
+      color: var(--accent-yt);
+    }
+
+    .tab-btn.active-tt {
+      background: var(--accent-glow-tt);
+      color: var(--accent-tt);
+    }
+
+    .tab-btn.active-ig {
+      background: var(--accent-glow-ig);
+      color: var(--accent-ig);
+    }
+
+    .tab-btn:hover:not(.active-yt):not(.active-tt):not(.active-ig) {
+      background: rgba(255,255,255,0.04);
+      color: var(--text-dim);
+    }
+
+    .tab-divider {
+      width: 1px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    /* Platform icon */
+    .yt-icon { color: #ff2d2d; }
+    .tt-icon { color: #00f0c8; }
+    .ig-icon { color: #e1306c; }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    /* URL row */
+    .url-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .url-row input {
+      flex: 1;
+    }
+
+    /* Inputs */
+    input[type="text"], input[type="url"], select, textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 11px 14px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--border-light);
+    }
+
+    input::placeholder { color: var(--text-muted); }
+
+    select {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666675' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+
+    select option {
+      background: var(--surface2);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 11px 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface2);
+      color: var(--text-dim);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn:hover:not(:disabled) {
+      border-color: var(--border-light);
+      color: var(--text);
+      background: #222228;
+    }
+
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-yt {
+      background: var(--accent-glow-yt);
+      border-color: rgba(255,45,45,0.4);
+      color: var(--accent-yt);
+    }
+
+    .btn-yt:hover:not(:disabled) {
+      background: rgba(255,45,45,0.2);
+      border-color: rgba(255,45,45,0.7);
+    }
+
+    .btn-tt {
+      background: var(--accent-glow-tt);
+      border-color: rgba(0,240,200,0.4);
+      color: var(--accent-tt);
+    }
+
+    .btn-tt:hover:not(:disabled) {
+      background: rgba(0,240,200,0.2);
+      border-color: rgba(0,240,200,0.7);
+    }
+
+    .btn-ig {
+      background: var(--accent-glow-ig);
+      border-color: rgba(225,48,108,0.4);
+      color: var(--accent-ig);
+    }
+
+    .btn-ig:hover:not(:disabled) {
+      background: rgba(225,48,108,0.2);
+      border-color: rgba(225,48,108,0.7);
+    }
+
+    .btn-full {
+      width: 100%;
+      padding: 14px;
+      font-size: 12px;
+      letter-spacing: 2px;
+    }
+
+    /* Video preview */
+    .video-preview {
+      display: none;
+      gap: 14px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .video-preview.visible { display: flex; }
+
+    .thumb-wrap {
+      flex-shrink: 0;
+      width: 100px;
+      height: 60px;
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+    }
+
+    .thumb-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .video-meta {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .video-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .video-stats {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-fast { background: rgba(0,200,120,0.12); color: #00c878; border: 1px solid rgba(0,200,120,0.25); }
+    .badge-slow { background: rgba(255,180,0,0.1); color: #ffb400; border: 1px solid rgba(255,180,0,0.25); }
+    .badge-accel { background: rgba(0,150,255,0.1); color: #0096ff; border: 1px solid rgba(0,150,255,0.25); }
+
+    /* Options grid */
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .options-grid .span2 { grid-column: span 2; }
+
+    .label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    /* Toggle / checkbox row */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      cursor: pointer;
+    }
+
+    .toggle-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent-yt);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .tt-panel .toggle-row input[type="checkbox"] {
+      accent-color: var(--accent-tt);
+    }
+
+    .toggle-label {
+      font-size: 13px;
+      color: var(--text-dim);
+      user-select: none;
+    }
+
+    /* Expandable section */
+    .expand-section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .expand-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--surface2);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .expand-header input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--accent-yt);
+      cursor: pointer;
+    }
+
+    .tt-panel .expand-header input[type="checkbox"] {
+      accent-color: var(--accent-tt);
+    }
+
+    .expand-title {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      color: var(--text-dim);
+    }
+
+    .expand-body {
+      display: none;
+      padding: 14px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .expand-body.open { display: block; }
+
+    /* Chapters selector */
+    .chapters-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-bottom: 10px;
+    }
+
+    .chapter-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .chapter-item:hover { border-color: var(--border-light); }
+    .chapter-item.selected-yt { border-color: rgba(255,45,45,0.5); background: var(--accent-glow-yt); }
+    .chapter-item.selected-tt { border-color: rgba(0,240,200,0.5); background: var(--accent-glow-tt); }
+
+    .chapter-time {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .chapter-name {
+      font-size: 12px;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Progress */
+    .progress-card {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      margin-bottom: 16px;
+    }
+
+    .progress-card.visible { display: block; }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .progress-status {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .progress-pct {
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .progress-track {
+      height: 4px;
+      background: var(--surface2);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 2px;
+      background: var(--accent-yt);
+      transition: width 0.3s ease;
+    }
+
+    .progress-fill.tt { background: var(--accent-tt); }
+    .progress-fill.ig { background: var(--accent-ig); }
+
+    .progress-meta {
+      display: flex;
+      gap: 20px;
+    }
+
+    .progress-meta span {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .progress-meta strong {
+      color: var(--text-dim);
+    }
+
+    /* Alert / status */
+    .alert {
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      font-family: var(--mono);
+      font-size: 11px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .alert.visible { display: block; }
+    .alert-err { background: rgba(255,50,50,0.08); border: 1px solid rgba(255,50,50,0.25); color: #ff6060; }
+    .alert-ok  { background: rgba(0,200,120,0.08); border: 1px solid rgba(0,200,120,0.25); color: #00c878; }
+    .alert-info{ background: rgba(0,140,255,0.08); border: 1px solid rgba(0,140,255,0.2); color: #5ab4ff; }
+
+    /* Transcript */
+    .transcript-box {
+      margin-top: 12px;
+      padding: 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text-dim);
+      max-height: 280px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .transcript-box.visible { display: block; }
+
+    .transcript-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    /* Est size */
+    .est-size {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* Separator */
+    .sep {
+      height: 1px;
+      background: var(--border);
+      margin: 16px 0;
+    }
+
+    /* TikTok note */
+    .platform-note {
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 6px 10px;
+      background: var(--surface2);
+      border-radius: 5px;
+      border-left: 2px solid var(--accent-tt);
+      margin-bottom: 14px;
+    }
+
+    /* Bitrate pills */
+    .bitrate-opt {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 11px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      transition: all 0.15s;
+      user-select: none;
+    }
+
+    .bitrate-opt input[type="radio"] { display: none; }
+
+    .bitrate-opt:hover { border-color: var(--border-light); color: var(--text-dim); }
+
+    .bitrate-opt.selected-yt {
+      background: var(--accent-glow-yt);
+      border-color: rgba(255,45,45,0.5);
+      color: var(--accent-yt);
+    }
+
+    .bitrate-opt.selected-tt {
+      background: var(--accent-glow-tt);
+      border-color: rgba(0,240,200,0.5);
+      color: var(--accent-tt);
+    }
+
+    .bitrate-opt.selected-ig {
+      background: var(--accent-glow-ig);
+      border-color: rgba(225,48,108,0.5);
+      color: var(--accent-ig);
+    }
+
+    @keyframes pulse-yt {
+      0%,100% { box-shadow: 0 0 0 0 rgba(255,45,45,0); }
+      50%      { box-shadow: 0 0 0 4px rgba(255,45,45,0.15); }
+    }
+    @keyframes pulse-tt {
+      0%,100% { box-shadow: 0 0 0 0 rgba(0,240,200,0); }
+      50%      { box-shadow: 0 0 0 4px rgba(0,240,200,0.15); }
+    }
+    @keyframes pulse-ig {
+      0%,100% { box-shadow: 0 0 0 0 rgba(225,48,108,0); }
+      50%      { box-shadow: 0 0 0 4px rgba(225,48,108,0.15); }
+    }
+
+    .downloading-yt { animation: pulse-yt 2s infinite; }
+    .downloading-tt { animation: pulse-tt 2s infinite; }
+    .downloading-ig { animation: pulse-ig 2s infinite; }
+
+    /* Download ready button flash */
+    @keyframes ready-flash {
+      0%   { opacity: 1; }
+      50%  { opacity: 0.6; }
+      100% { opacity: 1; }
+    }
+    .ready-flash { animation: ready-flash 1s 3; }
+
+    .hidden { display: none !important; }
+
+    /* Responsive */
+    @media (max-width: 520px) {
+      .options-grid { grid-template-columns: 1fr; }
+      .options-grid .span2 { grid-column: span 1; }
+      .video-preview { flex-direction: column; }
+      .thumb-wrap { width: 100%; height: 160px; }
+      .url-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="logo">DL<span>·</span>KIT</div>
+    <div class="logo-sub">Video Downloader &amp; Transcriber</div>
+  </header>
+
+  <!-- Platform tabs -->
+  <div class="platform-tabs">
+    <button class="tab-btn active-yt" id="tab-yt" onclick="switchPlatform('yt')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="yt-icon">
+        <path d="M23.5 6.2a3 3 0 00-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 00.5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 002.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 002.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.7 15.5V8.5L15.8 12l-6.1 3.5z"/>
+      </svg>
+      YOUTUBE
+    </button>
+    <div class="tab-divider"></div>
+    <button class="tab-btn" id="tab-tt" onclick="switchPlatform('tt')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="tt-icon">
+        <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.24 8.24 0 004.82 1.55V6.8a4.85 4.85 0 01-1.05-.11z"/>
+      </svg>
+      TIKTOK
+    </button>
+    <div class="tab-divider"></div>
+    <button class="tab-btn" id="tab-ig" onclick="switchPlatform('ig')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="ig-icon">
+        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+      </svg>
+      INSTAGRAM
+    </button>
+  </div>
+
+  <!-- ======================== YOUTUBE PANEL ======================== -->
+  <div id="yt-panel">
+
+    <!-- URL Input -->
+    <div class="card">
+      <div class="card-title">— Video URL</div>
+      <div class="url-row">
+        <input type="url" id="yt-url" placeholder="https://youtube.com/watch?v=… or shorts/…">
+        <button class="btn btn-yt" id="yt-load-btn" onclick="ytLoadInfo()">LOAD</button>
+      </div>
+      <div class="alert" id="yt-load-alert"></div>
+
+      <!-- Video preview -->
+      <div class="video-preview" id="yt-preview">
+        <div class="thumb-wrap">
+          <img id="yt-thumb" src="" alt="">
+        </div>
+        <div class="video-meta">
+          <div class="video-title" id="yt-title"></div>
+          <div class="video-stats">
+            <span id="yt-duration"></span>
+            <span id="yt-accel-badge"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Download Options -->
+    <div class="card" id="yt-options-card" style="display:none">
+      <div class="card-title">— Download Options</div>
+
+      <div class="options-grid">
+        <div class="span2">
+          <div class="label">Resolution</div>
+          <select id="yt-resolution" onchange="ytUpdateEst()"></select>
+          <div id="yt-res-hint" style="font-size:11px; color: var(--text-muted); margin-top:5px;"></div>
+        </div>
+
+        <div class="span2">
+          <label class="toggle-row">
+            <input type="checkbox" id="yt-audio-only" onchange="ytToggleAudio()">
+            <span class="toggle-label">Audio only (MP3)</span>
+          </label>
+        </div>
+
+        <div class="span2" id="yt-bitrate-row" style="display:none">
+          <div class="label">Audio Bitrate</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <label class="bitrate-opt" data-platform="yt">
+              <input type="radio" name="yt-bitrate" value="64k"> <span>64 kbps</span>
+            </label>
+            <label class="bitrate-opt" data-platform="yt">
+              <input type="radio" name="yt-bitrate" value="96k"> <span>96 kbps</span>
+            </label>
+            <label class="bitrate-opt" data-platform="yt">
+              <input type="radio" name="yt-bitrate" value="128k"> <span>128 kbps</span>
+            </label>
+            <label class="bitrate-opt selected-yt" data-platform="yt">
+              <input type="radio" name="yt-bitrate" value="192k" checked> <span>192 kbps</span>
+            </label>
+            <label class="bitrate-opt" data-platform="yt">
+              <input type="radio" name="yt-bitrate" value="256k"> <span>256 kbps</span>
+            </label>
+            <label class="bitrate-opt" data-platform="yt">
+              <input type="radio" name="yt-bitrate" value="320k"> <span>320 kbps</span>
+            </label>
+          </div>
+          </div>
+
+      </div>
+
+      <div class="est-size" id="yt-est-size"></div>
+
+      <!-- Trim section -->
+      <div style="margin-top:12px;">
+        <div class="expand-section">
+          <div class="expand-header" onclick="ytToggleTrim()">
+            <input type="checkbox" id="yt-do-trim" onclick="event.stopPropagation(); ytToggleTrim()">
+            <span class="expand-title">TRIM CLIP</span>
+          </div>
+          <div class="expand-body" id="yt-trim-body">
+
+            <!-- Chapters -->
+            <div id="yt-chapters-wrap" class="hidden">
+              <div class="label" style="margin-bottom:8px;">JUMP TO CHAPTER</div>
+              <div class="chapters-list" id="yt-chapters-list"></div>
+              <div class="sep"></div>
+            </div>
+
+            <div class="options-grid">
+              <div>
+                <div class="label">Start</div>
+                <input type="text" id="yt-t-start" placeholder="0:10 or 70" oninput="ytUpdateEst()">
+              </div>
+              <div>
+                <div class="label">End</div>
+                <input type="text" id="yt-t-end" placeholder="1:30 or 90" oninput="ytUpdateEst()">
+              </div>
+            </div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">
+              Leave blank to trim from beginning / to end.
+            </div>
+            <div class="est-size" id="yt-trim-est"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+      <button class="btn btn-yt btn-full" id="yt-dl-btn" onclick="ytStartDownload()">
+        ⬇ DOWNLOAD
+      </button>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-card" id="yt-progress-card">
+      <div class="progress-header">
+        <span class="progress-status" id="yt-prog-msg">Starting…</span>
+        <span class="progress-pct" id="yt-prog-pct">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="yt-prog-fill"></div>
+      </div>
+      <div class="progress-meta">
+        <span><strong>SPEED</strong>&nbsp;<span id="yt-prog-speed">—</span></span>
+        <span><strong>ETA</strong>&nbsp;<span id="yt-prog-eta">—</span></span>
+      </div>
+    </div>
+
+    <!-- Transcribe section -->
+    <div class="card" id="yt-transcribe-card" style="display:none">
+      <div class="card-title">— Transcript</div>
+      <p style="font-size:13px; color:var(--text-dim); margin-bottom:14px; line-height:1.6;">
+        Extract captions or auto-generate a transcript via Whisper (if installed).
+      </p>
+      <button class="btn btn-yt btn-full" id="yt-trans-btn" onclick="ytStartTranscribe()">
+        ⌨ TRANSCRIBE VIDEO
+      </button>
+      <div class="alert" id="yt-trans-alert"></div>
+      <div id="yt-trans-progress" class="progress-card" style="margin-top:12px; margin-bottom:0;">
+        <div class="progress-header">
+          <span class="progress-status" id="yt-trans-msg">Working…</span>
+          <span class="progress-pct" id="yt-trans-pct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="yt-trans-fill"></div>
+        </div>
+      </div>
+      <div class="transcript-box" id="yt-transcript"></div>
+      <div class="transcript-actions" id="yt-trans-actions" style="display:none">
+        <button class="btn" onclick="copyTranscript('yt')">📋 COPY</button>
+        <button class="btn" onclick="downloadTranscript('yt')">⬇ SAVE .TXT</button>
+      </div>
+    </div>
+
+  </div><!-- /yt-panel -->
+
+
+  <!-- ======================== TIKTOK PANEL ======================== -->
+  <div id="tt-panel" class="tt-panel" style="display:none;">
+
+    <!-- URL Input -->
+    <div class="card">
+      <div class="card-title">— TikTok URL</div>
+      <div class="platform-note">
+        Paste any TikTok video URL. Watermark-free downloads are attempted automatically.
+      </div>
+      <div class="url-row">
+        <input type="url" id="tt-url" placeholder="https://www.tiktok.com/@user/video/…">
+        <button class="btn btn-tt" id="tt-load-btn" onclick="ttLoadInfo()">LOAD</button>
+      </div>
+      <div class="alert" id="tt-load-alert"></div>
+
+      <div class="video-preview" id="tt-preview">
+        <div class="thumb-wrap">
+          <img id="tt-thumb" src="" alt="">
+        </div>
+        <div class="video-meta">
+          <div class="video-title" id="tt-title"></div>
+          <div class="video-stats">
+            <span id="tt-duration"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Download Options -->
+    <div class="card" id="tt-options-card" style="display:none">
+      <div class="card-title">— Download Options</div>
+
+      <div class="options-grid">
+        <div class="span2">
+          <div class="label">Quality</div>
+          <select id="tt-resolution"></select>
+        </div>
+
+        <div class="span2">
+          <label class="toggle-row">
+            <input type="checkbox" id="tt-audio-only" onchange="ttToggleAudio()">
+            <span class="toggle-label">Audio only (MP3)</span>
+          </label>
+        </div>
+
+        <div class="span2" id="tt-bitrate-row" style="display:none">
+          <div class="label">Audio Bitrate</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <label class="bitrate-opt" data-platform="tt">
+              <input type="radio" name="tt-bitrate" value="64k"> <span>64 kbps</span>
+            </label>
+            <label class="bitrate-opt" data-platform="tt">
+              <input type="radio" name="tt-bitrate" value="96k"> <span>96 kbps</span>
+            </label>
+            <label class="bitrate-opt" data-platform="tt">
+              <input type="radio" name="tt-bitrate" value="128k"> <span>128 kbps</span>
+            </label>
+            <label class="bitrate-opt selected-tt" data-platform="tt">
+              <input type="radio" name="tt-bitrate" value="192k" checked> <span>192 kbps</span>
+            </label>
+            <label class="bitrate-opt" data-platform="tt">
+              <input type="radio" name="tt-bitrate" value="256k"> <span>256 kbps</span>
+            </label>
+            <label class="bitrate-opt" data-platform="tt">
+              <input type="radio" name="tt-bitrate" value="320k"> <span>320 kbps</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="span2">
+          <label class="toggle-row">
+            <input type="checkbox" id="tt-no-watermark">
+            <span class="toggle-label">Remove watermark (when possible)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Trim section -->
+      <div style="margin-top:12px;">
+        <div class="expand-section">
+          <div class="expand-header" onclick="ttToggleTrim()">
+            <input type="checkbox" id="tt-do-trim" onclick="event.stopPropagation(); ttToggleTrim()">
+            <span class="expand-title">TRIM CLIP</span>
+          </div>
+          <div class="expand-body" id="tt-trim-body">
+            <div class="options-grid">
+              <div>
+                <div class="label">Start</div>
+                <input type="text" id="tt-t-start" placeholder="0:05 or 5">
+              </div>
+              <div>
+                <div class="label">End</div>
+                <input type="text" id="tt-t-end" placeholder="0:20 or 20">
+              </div>
+            </div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">
+              Leave blank to trim from beginning / to end.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+      <button class="btn btn-tt btn-full" id="tt-dl-btn" onclick="ttStartDownload()">
+        ⬇ DOWNLOAD
+      </button>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-card" id="tt-progress-card">
+      <div class="progress-header">
+        <span class="progress-status" id="tt-prog-msg">Starting…</span>
+        <span class="progress-pct" id="tt-prog-pct">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill tt" id="tt-prog-fill"></div>
+      </div>
+      <div class="progress-meta">
+        <span><strong>SPEED</strong>&nbsp;<span id="tt-prog-speed">—</span></span>
+        <span><strong>ETA</strong>&nbsp;<span id="tt-prog-eta">—</span></span>
+      </div>
+    </div>
+
+    <!-- Transcribe section -->
+    <div class="card" id="tt-transcribe-card" style="display:none">
+      <div class="card-title">— Transcript</div>
+      <p style="font-size:13px; color:var(--text-dim); margin-bottom:14px; line-height:1.6;">
+        Extract spoken content from this TikTok via Whisper (auto-captions rarely available).
+      </p>
+      <button class="btn btn-tt btn-full" id="tt-trans-btn" onclick="ttStartTranscribe()">
+        ⌨ TRANSCRIBE VIDEO
+      </button>
+      <div class="alert" id="tt-trans-alert"></div>
+      <div id="tt-trans-progress" class="progress-card" style="margin-top:12px; margin-bottom:0;">
+        <div class="progress-header">
+          <span class="progress-status" id="tt-trans-msg">Working…</span>
+          <span class="progress-pct" id="tt-trans-pct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill tt" id="tt-trans-fill"></div>
+        </div>
+      </div>
+      <div class="transcript-box" id="tt-transcript"></div>
+      <div class="transcript-actions" id="tt-trans-actions" style="display:none">
+        <button class="btn" onclick="copyTranscript('tt')">📋 COPY</button>
+        <button class="btn" onclick="downloadTranscript('tt')">⬇ SAVE .TXT</button>
+      </div>
+    </div>
+
+  </div><!-- /tt-panel -->
+
+
+  <!-- ======================== INSTAGRAM PANEL ======================== -->
+  <div id="ig-panel" class="ig-panel" style="display:none;">
+
+    <!-- URL Input -->
+    <div class="card">
+      <div class="card-title">— Instagram URL</div>
+      <div class="platform-note">
+        Paste any Instagram Reel or post URL. Private content requires cookies.
+      </div>
+      <div class="url-row">
+        <input type="url" id="ig-url" placeholder="https://www.instagram.com/reel/…">
+        <button class="btn btn-ig" id="ig-load-btn" onclick="igLoadInfo()">LOAD</button>
+      </div>
+      <div class="alert" id="ig-load-alert"></div>
+
+      <div class="video-preview" id="ig-preview">
+        <div class="thumb-wrap">
+          <img id="ig-thumb" src="" alt="">
+        </div>
+        <div class="video-meta">
+          <div class="video-title" id="ig-title"></div>
+          <div class="video-stats">
+            <span id="ig-duration"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Download Options -->
+    <div class="card" id="ig-options-card" style="display:none">
+      <div class="card-title">— Download Options</div>
+
+      <div class="options-grid">
+        <div class="span2">
+          <div class="label">Quality</div>
+          <select id="ig-resolution"></select>
+        </div>
+
+        <div class="span2">
+          <label class="toggle-row">
+            <input type="checkbox" id="ig-audio-only" onchange="igToggleAudio()">
+            <span class="toggle-label">Audio only (MP3)</span>
+          </label>
+        </div>
+
+        <div class="span2" id="ig-bitrate-row" style="display:none">
+          <div class="label">Audio Bitrate</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <label class="bitrate-opt" data-platform="ig">
+              <input type="radio" name="ig-bitrate" value="64k"> <span>64 kbps</span>
+            </label>
+            <label class="bitrate-opt" data-platform="ig">
+              <input type="radio" name="ig-bitrate" value="96k"> <span>96 kbps</span>
+            </label>
+            <label class="bitrate-opt" data-platform="ig">
+              <input type="radio" name="ig-bitrate" value="128k"> <span>128 kbps</span>
+            </label>
+            <label class="bitrate-opt selected-ig" data-platform="ig">
+              <input type="radio" name="ig-bitrate" value="192k" checked> <span>192 kbps</span>
+            </label>
+            <label class="bitrate-opt" data-platform="ig">
+              <input type="radio" name="ig-bitrate" value="256k"> <span>256 kbps</span>
+            </label>
+            <label class="bitrate-opt" data-platform="ig">
+              <input type="radio" name="ig-bitrate" value="320k"> <span>320 kbps</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trim section -->
+      <div style="margin-top:12px;">
+        <div class="expand-section">
+          <div class="expand-header" onclick="igToggleTrim()">
+            <input type="checkbox" id="ig-do-trim" onclick="event.stopPropagation(); igToggleTrim()">
+            <span class="expand-title">TRIM CLIP</span>
+          </div>
+          <div class="expand-body" id="ig-trim-body">
+            <div class="options-grid">
+              <div>
+                <div class="label">Start</div>
+                <input type="text" id="ig-t-start" placeholder="0:05 or 5">
+              </div>
+              <div>
+                <div class="label">End</div>
+                <input type="text" id="ig-t-end" placeholder="0:20 or 20">
+              </div>
+            </div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">
+              Leave blank to trim from beginning / to end.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+      <button class="btn btn-ig btn-full" id="ig-dl-btn" onclick="igStartDownload()">
+        ⬇ DOWNLOAD
+      </button>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-card" id="ig-progress-card">
+      <div class="progress-header">
+        <span class="progress-status" id="ig-prog-msg">Starting…</span>
+        <span class="progress-pct" id="ig-prog-pct">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill ig" id="ig-prog-fill"></div>
+      </div>
+      <div class="progress-meta">
+        <span><strong>SPEED</strong>&nbsp;<span id="ig-prog-speed">—</span></span>
+        <span><strong>ETA</strong>&nbsp;<span id="ig-prog-eta">—</span></span>
+      </div>
+    </div>
+
+    <!-- Transcribe section -->
+    <div class="card" id="ig-transcribe-card" style="display:none">
+      <div class="card-title">— Transcript</div>
+      <p style="font-size:13px; color:var(--text-dim); margin-bottom:14px; line-height:1.6;">
+        Extract spoken content from this Reel via Whisper (captions rarely available).
+      </p>
+      <button class="btn btn-ig btn-full" id="ig-trans-btn" onclick="igStartTranscribe()">
+        ⌨ TRANSCRIBE VIDEO
+      </button>
+      <div class="alert" id="ig-trans-alert"></div>
+      <div id="ig-trans-progress" class="progress-card" style="margin-top:12px; margin-bottom:0;">
+        <div class="progress-header">
+          <span class="progress-status" id="ig-trans-msg">Working…</span>
+          <span class="progress-pct" id="ig-trans-pct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill ig" id="ig-trans-fill"></div>
+        </div>
+      </div>
+      <div class="transcript-box" id="ig-transcript"></div>
+      <div class="transcript-actions" id="ig-trans-actions" style="display:none">
+        <button class="btn" onclick="copyTranscript('ig')">📋 COPY</button>
+        <button class="btn" onclick="downloadTranscript('ig')">⬇ SAVE .TXT</button>
+      </div>
+    </div>
+
+  </div><!-- /ig-panel -->
+
+
+</div><!-- /wrapper -->
+
+<script>
+// =====================================================================
+// STATE
+// =====================================================================
+const state = {
+  yt: { duration: 0, audioMb: 0, chapters: [], currentDlJob: null },
+  tt: { duration: 0, audioMb: 0, chapters: [], currentDlJob: null },
+  ig: { duration: 0, audioMb: 0, chapters: [], currentDlJob: null },
+};
+
+// =====================================================================
+// PLATFORM SWITCH
+// =====================================================================
+function switchPlatform(p) {
+  document.getElementById('yt-panel').style.display = p === 'yt' ? 'block' : 'none';
+  document.getElementById('tt-panel').style.display = p === 'tt' ? 'block' : 'none';
+  document.getElementById('ig-panel').style.display = p === 'ig' ? 'block' : 'none';
+  document.getElementById('tab-yt').className = `tab-btn ${p === 'yt' ? 'active-yt' : ''}`;
+  document.getElementById('tab-tt').className = `tab-btn ${p === 'tt' ? 'active-tt' : ''}`;
+  document.getElementById('tab-ig').className = `tab-btn ${p === 'ig' ? 'active-ig' : ''}`;
+}
+
+// =====================================================================
+// HELPERS
+// =====================================================================
+function parseTs(s) {
+  if (!s) return null;
+  s = s.trim();
+  if (!s) return null;
+  const parts = s.split(':').map(Number);
+  if (parts.some(isNaN)) return null;
+  while (parts.length < 3) parts.unshift(0);
+  const [h, m, sec] = parts;
+  return h * 3600 + m * 60 + sec;
+}
+
+function fmtDur(sec) {
+  if (!sec) return '—';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60).toString().padStart(2, '0');
+  return h ? `${h}:${m.toString().padStart(2,'0')}:${s}` : `${m}:${s}`;
+}
+
+function showAlert(id, msg, type = 'info') {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = `alert alert-${type} visible`;
+}
+
+function hideAlert(id) {
+  document.getElementById(id).className = 'alert';
+}
+
+function setBtn(id, text, disabled) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.disabled = disabled;
+}
+
+// =====================================================================
+// YOUTUBE — LOAD INFO
+// =====================================================================
+async function ytLoadInfo() {
+  const url = document.getElementById('yt-url').value.trim();
+  if (!url) return;
+  hideAlert('yt-load-alert');
+  setBtn('yt-load-btn', 'LOADING…', true);
+  document.getElementById('yt-options-card').style.display = 'none';
+  document.getElementById('yt-transcribe-card').style.display = 'none';
+  document.getElementById('yt-preview').classList.remove('visible');
+
+  try {
+    const r = await fetch(`/resolutions?url=${encodeURIComponent(url)}`);
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+
+    state.yt.duration = data.duration || 0;
+    state.yt.audioMb = data.audio_mb || 0;
+    state.yt.chapters = data.chapters || [];
+
+    // Preview
+    document.getElementById('yt-thumb').src = data.thumb || '';
+    document.getElementById('yt-title').textContent = data.title || '';
+    document.getElementById('yt-duration').textContent = `⏱ ${fmtDur(data.duration)}`;
+    document.getElementById('yt-accel-badge').innerHTML = data.aria2c
+      ? '<span class="badge badge-accel">⚡ ARIA2C</span>' : '';
+    document.getElementById('yt-preview').classList.add('visible');
+
+    // Resolution options
+    const sel = document.getElementById('yt-resolution');
+    sel.innerHTML = '';
+    data.list.sort((a, b) => {
+      if (a.height === data.native) return -1;
+      if (b.height === data.native) return 1;
+      return b.height - a.height;
+    });
+    data.list.forEach(opt => {
+      const o = document.createElement('option');
+      o.value = opt.height;
+      o.textContent = `${opt.height}p — ${opt.size} MB  ${opt.fast ? '⚡' : '🔄'}`;
+      o.dataset.mb = opt.size;
+      o.dataset.fast = opt.fast ? '1' : '0';
+      sel.appendChild(o);
+    });
+    if (data.native) sel.value = data.native;
+
+    document.getElementById('yt-res-hint').innerHTML =
+      '<small style="color:var(--text-muted)">⚡ stream copy (fast) &nbsp;|&nbsp; 🔄 re-encode required</small>';
+
+    // Chapters
+    ytBuildChapters();
+    ytUpdateEst();
+
+    document.getElementById('yt-options-card').style.display = 'block';
+    document.getElementById('yt-transcribe-card').style.display = 'block';
+
+  } catch (err) {
+    showAlert('yt-load-alert', `Error: ${err.message}`, 'err');
+  } finally {
+    setBtn('yt-load-btn', 'LOAD', false);
+  }
+}
+
+function ytBuildChapters() {
+  const chapters = state.yt.chapters;
+  const wrap = document.getElementById('yt-chapters-wrap');
+  const list = document.getElementById('yt-chapters-list');
+  list.innerHTML = '';
+  if (!chapters.length) { wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+
+  chapters.forEach((ch, i) => {
+    const item = document.createElement('div');
+    item.className = 'chapter-item';
+    item.innerHTML = `
+      <span class="chapter-time">${fmtDur(ch.start)}</span>
+      <span class="chapter-name">${ch.title}</span>
+    `;
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.chapter-item').forEach(el => el.classList.remove('selected-yt'));
+      item.classList.add('selected-yt');
+      document.getElementById('yt-t-start').value = fmtDur(ch.start);
+      document.getElementById('yt-t-end').value = fmtDur(ch.end);
+      ytUpdateEst();
+      // Auto-enable trim
+      document.getElementById('yt-do-trim').checked = true;
+      document.getElementById('yt-trim-body').classList.add('open');
+    });
+    list.appendChild(item);
+  });
+}
+
+function ytToggleTrim() {
+  const cb = document.getElementById('yt-do-trim');
+  const body = document.getElementById('yt-trim-body');
+  // If header was clicked (not checkbox directly), toggle checkbox
+  if (event.target !== cb) cb.checked = !cb.checked;
+  body.classList.toggle('open', cb.checked);
+  ytUpdateEst();
+}
+
+function ytToggleAudio() {
+  const aud = document.getElementById('yt-audio-only').checked;
+  document.getElementById('yt-resolution').disabled = aud;
+  document.getElementById('yt-bitrate-row').style.display = aud ? 'block' : 'none';
+  ytUpdateEst();
+}
+
+function getBitrate(platform) {
+  const checked = document.querySelector(`input[name="${platform}-bitrate"]:checked`);
+  return checked ? checked.value : '192k';
+}
+
+function ytUpdateEst() {
+  const doTrim = document.getElementById('yt-do-trim').checked;
+  const audioOnly = document.getElementById('yt-audio-only').checked;
+  const dur = state.yt.duration;
+
+  const est = document.getElementById('yt-est-size');
+  const trimEst = document.getElementById('yt-trim-est');
+
+  if (!dur) { est.textContent = ''; trimEst.textContent = ''; return; }
+
+  const sel = document.getElementById('yt-resolution');
+  const opt = sel.options[sel.selectedIndex];
+  const baseMb = audioOnly ? state.yt.audioMb : (opt ? parseFloat(opt.dataset.mb || '0') : 0);
+  const isFast = opt ? opt.dataset.fast === '1' : false;
+
+  if (!audioOnly) {
+    est.innerHTML = baseMb
+      ? `~${baseMb.toFixed(1)} MB &nbsp;${isFast ? '<span class="badge badge-fast">FAST</span>' : '<span class="badge badge-slow">RE-ENCODE</span>'}`
+      : '';
+  } else {
+    est.innerHTML = state.yt.audioMb ? `~${state.yt.audioMb.toFixed(1)} MB (audio)` : '';
+  }
+
+  if (doTrim && baseMb) {
+    const start = parseTs(document.getElementById('yt-t-start').value) ?? 0;
+    const endRaw = parseTs(document.getElementById('yt-t-end').value);
+    const end = endRaw == null ? dur : endRaw;
+    const clip = Math.max(0, Math.min(dur, end) - Math.min(dur, start));
+    const estMb = clip > 0 ? (clip / dur) * baseMb : 0;
+    trimEst.textContent = estMb > 0 ? `Clip size: ~${estMb.toFixed(1)} MB` : '';
+  } else {
+    trimEst.textContent = '';
+  }
+}
+
+// =====================================================================
+// YOUTUBE — DOWNLOAD
+// =====================================================================
+async function ytStartDownload() {
+  const url = document.getElementById('yt-url').value.trim();
+  const resolution = document.getElementById('yt-resolution').value;
+  const audioOnly = document.getElementById('yt-audio-only').checked;
+  const doTrim = document.getElementById('yt-do-trim').checked;
+  const tStart = document.getElementById('yt-t-start').value;
+  const tEnd = document.getElementById('yt-t-end').value;
+
+  const fd = new FormData();
+  fd.append('url', url);
+  fd.append('resolution', resolution);
+  if (audioOnly) fd.append('audio_only', 'on');
+  fd.append('audio_bitrate', getBitrate('yt'));
+  if (doTrim) fd.append('do_trim', 'on');
+  if (tStart) fd.append('t_start', tStart);
+  if (tEnd) fd.append('t_end', tEnd);
+
+  setBtn('yt-dl-btn', 'STARTING…', true);
+  document.getElementById('yt-progress-card').classList.add('visible', 'downloading-yt');
+
+  try {
+    const r = await fetch('/start_download', { method: 'POST', body: fd });
+    const { job_id, error } = await r.json();
+    if (error) throw new Error(error);
+    state.yt.currentDlJob = job_id;
+    trackProgress(job_id, 'yt', 'dl');
+  } catch (err) {
+    showAlert('yt-load-alert', `Failed to start: ${err.message}`, 'err');
+    setBtn('yt-dl-btn', '⬇ DOWNLOAD', false);
+    document.getElementById('yt-progress-card').classList.remove('visible', 'downloading-yt');
+  }
+}
+
+// =====================================================================
+// YOUTUBE — TRANSCRIBE
+// =====================================================================
+async function ytStartTranscribe() {
+  const url = document.getElementById('yt-url').value.trim();
+  if (!url) return;
+
+  setBtn('yt-trans-btn', 'TRANSCRIBING…', true);
+  document.getElementById('yt-trans-progress').classList.add('visible');
+  document.getElementById('yt-transcript').classList.remove('visible');
+  document.getElementById('yt-trans-actions').style.display = 'none';
+  hideAlert('yt-trans-alert');
+
+  const fd = new FormData();
+  fd.append('url', url);
+
+  try {
+    const r = await fetch('/start_transcribe', { method: 'POST', body: fd });
+    const { job_id, error } = await r.json();
+    if (error) throw new Error(error);
+    trackProgress(job_id, 'yt', 'trans');
+  } catch (err) {
+    showAlert('yt-trans-alert', `Error: ${err.message}`, 'err');
+    setBtn('yt-trans-btn', '⌨ TRANSCRIBE VIDEO', false);
+    document.getElementById('yt-trans-progress').classList.remove('visible');
+  }
+}
+
+// =====================================================================
+// TIKTOK — LOAD INFO
+// =====================================================================
+async function ttLoadInfo() {
+  const url = document.getElementById('tt-url').value.trim();
+  if (!url) return;
+  hideAlert('tt-load-alert');
+  setBtn('tt-load-btn', 'LOADING…', true);
+  document.getElementById('tt-options-card').style.display = 'none';
+  document.getElementById('tt-transcribe-card').style.display = 'none';
+  document.getElementById('tt-preview').classList.remove('visible');
+
+  try {
+    // Reuse the same /resolutions endpoint — yt-dlp handles TikTok too
+    const r = await fetch(`/resolutions?url=${encodeURIComponent(url)}`);
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+
+    state.tt.duration = data.duration || 0;
+    state.tt.audioMb = data.audio_mb || 0;
+
+    document.getElementById('tt-thumb').src = data.thumb || '';
+    document.getElementById('tt-title').textContent = data.title || '';
+    document.getElementById('tt-duration').textContent = `⏱ ${fmtDur(data.duration)}`;
+    document.getElementById('tt-preview').classList.add('visible');
+
+    const sel = document.getElementById('tt-resolution');
+    sel.innerHTML = '';
+    if (data.list.length) {
+      data.list.forEach(opt => {
+        const o = document.createElement('option');
+        o.value = opt.height;
+        o.textContent = `${opt.height}p — ${opt.size} MB`;
+        o.dataset.mb = opt.size;
+        sel.appendChild(o);
+      });
+    } else {
+      // TikTok often has a single format — add a generic option
+      const o = document.createElement('option');
+      o.value = '1080';
+      o.textContent = 'Best available';
+      sel.appendChild(o);
+    }
+
+    document.getElementById('tt-options-card').style.display = 'block';
+    document.getElementById('tt-transcribe-card').style.display = 'block';
+
+  } catch (err) {
+    showAlert('tt-load-alert', `Error: ${err.message}`, 'err');
+  } finally {
+    setBtn('tt-load-btn', 'LOAD', false);
+  }
+}
+
+function ttToggleTrim() {
+  const cb = document.getElementById('tt-do-trim');
+  const body = document.getElementById('tt-trim-body');
+  if (event.target !== cb) cb.checked = !cb.checked;
+  body.classList.toggle('open', cb.checked);
+}
+
+function ttToggleAudio() {
+  const aud = document.getElementById('tt-audio-only').checked;
+  document.getElementById('tt-resolution').disabled = aud;
+  document.getElementById('tt-bitrate-row').style.display = aud ? 'block' : 'none';
+}
+
+// =====================================================================
+// TIKTOK — DOWNLOAD
+// =====================================================================
+async function ttStartDownload() {
+  const url = document.getElementById('tt-url').value.trim();
+  const resolution = document.getElementById('tt-resolution').value;
+  const audioOnly = document.getElementById('tt-audio-only').checked;
+  const noWatermark = document.getElementById('tt-no-watermark').checked;
+  const doTrim = document.getElementById('tt-do-trim').checked;
+  const tStart = document.getElementById('tt-t-start').value;
+  const tEnd = document.getElementById('tt-t-end').value;
+
+  const fd = new FormData();
+  fd.append('url', url);
+  fd.append('resolution', resolution);
+  fd.append('platform', 'tiktok');
+  if (audioOnly) fd.append('audio_only', 'on');
+  fd.append('audio_bitrate', getBitrate('tt'));
+  if (noWatermark) fd.append('no_watermark', 'on');
+  if (doTrim) fd.append('do_trim', 'on');
+  if (tStart) fd.append('t_start', tStart);
+  if (tEnd) fd.append('t_end', tEnd);
+
+  setBtn('tt-dl-btn', 'STARTING…', true);
+  document.getElementById('tt-progress-card').classList.add('visible', 'downloading-tt');
+
+  try {
+    const r = await fetch('/start_download', { method: 'POST', body: fd });
+    const { job_id, error } = await r.json();
+    if (error) throw new Error(error);
+    state.tt.currentDlJob = job_id;
+    trackProgress(job_id, 'tt', 'dl');
+  } catch (err) {
+    showAlert('tt-load-alert', `Failed to start: ${err.message}`, 'err');
+    setBtn('tt-dl-btn', '⬇ DOWNLOAD', false);
+    document.getElementById('tt-progress-card').classList.remove('visible', 'downloading-tt');
+  }
+}
+
+// =====================================================================
+// TIKTOK — TRANSCRIBE
+// =====================================================================
+async function ttStartTranscribe() {
+  const url = document.getElementById('tt-url').value.trim();
+  if (!url) return;
+
+  setBtn('tt-trans-btn', 'TRANSCRIBING…', true);
+  document.getElementById('tt-trans-progress').classList.add('visible');
+  document.getElementById('tt-transcript').classList.remove('visible');
+  document.getElementById('tt-trans-actions').style.display = 'none';
+  hideAlert('tt-trans-alert');
+
+  const fd = new FormData();
+  fd.append('url', url);
+
+  try {
+    const r = await fetch('/start_transcribe', { method: 'POST', body: fd });
+    const { job_id, error } = await r.json();
+    if (error) throw new Error(error);
+    trackProgress(job_id, 'tt', 'trans');
+  } catch (err) {
+    showAlert('tt-trans-alert', `Error: ${err.message}`, 'err');
+    setBtn('tt-trans-btn', '⌨ TRANSCRIBE VIDEO', false);
+    document.getElementById('tt-trans-progress').classList.remove('visible');
+  }
+}
+
+// =====================================================================
+// INSTAGRAM — LOAD INFO
+// =====================================================================
+async function igLoadInfo() {
+  const url = document.getElementById('ig-url').value.trim();
+  if (!url) return;
+  hideAlert('ig-load-alert');
+  setBtn('ig-load-btn', 'LOADING…', true);
+  document.getElementById('ig-options-card').style.display = 'none';
+  document.getElementById('ig-transcribe-card').style.display = 'none';
+  document.getElementById('ig-preview').classList.remove('visible');
+
+  try {
+    const r = await fetch(`/resolutions?url=${encodeURIComponent(url)}`);
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+
+    state.ig.duration = data.duration || 0;
+    state.ig.audioMb = data.audio_mb || 0;
+
+    document.getElementById('ig-thumb').src = data.thumb || '';
+    document.getElementById('ig-title').textContent = data.title || '';
+    document.getElementById('ig-duration').textContent = `⏱ ${fmtDur(data.duration)}`;
+    document.getElementById('ig-preview').classList.add('visible');
+
+    const sel = document.getElementById('ig-resolution');
+    sel.innerHTML = '';
+    if (data.list.length) {
+      data.list.forEach(opt => {
+        const o = document.createElement('option');
+        o.value = opt.height;
+        o.textContent = `${opt.height}p — ${opt.size} MB`;
+        o.dataset.mb = opt.size;
+        sel.appendChild(o);
+      });
+    } else {
+      const o = document.createElement('option');
+      o.value = '1080';
+      o.textContent = 'Best available';
+      sel.appendChild(o);
+    }
+
+    document.getElementById('ig-options-card').style.display = 'block';
+    document.getElementById('ig-transcribe-card').style.display = 'block';
+
+  } catch (err) {
+    showAlert('ig-load-alert', `Error: ${err.message}`, 'err');
+  } finally {
+    setBtn('ig-load-btn', 'LOAD', false);
+  }
+}
+
+function igToggleTrim() {
+  const cb = document.getElementById('ig-do-trim');
+  const body = document.getElementById('ig-trim-body');
+  if (event.target !== cb) cb.checked = !cb.checked;
+  body.classList.toggle('open', cb.checked);
+}
+
+function igToggleAudio() {
+  const aud = document.getElementById('ig-audio-only').checked;
+  document.getElementById('ig-resolution').disabled = aud;
+  document.getElementById('ig-bitrate-row').style.display = aud ? 'block' : 'none';
+}
+
+// =====================================================================
+// INSTAGRAM — DOWNLOAD
+// =====================================================================
+async function igStartDownload() {
+  const url = document.getElementById('ig-url').value.trim();
+  const resolution = document.getElementById('ig-resolution').value;
+  const audioOnly = document.getElementById('ig-audio-only').checked;
+  const doTrim = document.getElementById('ig-do-trim').checked;
+  const tStart = document.getElementById('ig-t-start').value;
+  const tEnd = document.getElementById('ig-t-end').value;
+
+  const fd = new FormData();
+  fd.append('url', url);
+  fd.append('resolution', resolution);
+  fd.append('platform', 'instagram');
+  if (audioOnly) fd.append('audio_only', 'on');
+  fd.append('audio_bitrate', getBitrate('ig'));
+  if (doTrim) fd.append('do_trim', 'on');
+  if (tStart) fd.append('t_start', tStart);
+  if (tEnd) fd.append('t_end', tEnd);
+
+  setBtn('ig-dl-btn', 'STARTING…', true);
+  document.getElementById('ig-progress-card').classList.add('visible', 'downloading-ig');
+
+  try {
+    const r = await fetch('/start_download', { method: 'POST', body: fd });
+    const { job_id, error } = await r.json();
+    if (error) throw new Error(error);
+    state.ig.currentDlJob = job_id;
+    trackProgress(job_id, 'ig', 'dl');
+  } catch (err) {
+    showAlert('ig-load-alert', `Failed to start: ${err.message}`, 'err');
+    setBtn('ig-dl-btn', '⬇ DOWNLOAD', false);
+    document.getElementById('ig-progress-card').classList.remove('visible', 'downloading-ig');
+  }
+}
+
+// =====================================================================
+// INSTAGRAM — TRANSCRIBE
+// =====================================================================
+async function igStartTranscribe() {
+  const url = document.getElementById('ig-url').value.trim();
+  if (!url) return;
+
+  setBtn('ig-trans-btn', 'TRANSCRIBING…', true);
+  document.getElementById('ig-trans-progress').classList.add('visible');
+  document.getElementById('ig-transcript').classList.remove('visible');
+  document.getElementById('ig-trans-actions').style.display = 'none';
+  hideAlert('ig-trans-alert');
+
+  const fd = new FormData();
+  fd.append('url', url);
+
+  try {
+    const r = await fetch('/start_transcribe', { method: 'POST', body: fd });
+    const { job_id, error } = await r.json();
+    if (error) throw new Error(error);
+    trackProgress(job_id, 'ig', 'trans');
+  } catch (err) {
+    showAlert('ig-trans-alert', `Error: ${err.message}`, 'err');
+    setBtn('ig-trans-btn', '⌨ TRANSCRIBE VIDEO', false);
+    document.getElementById('ig-trans-progress').classList.remove('visible');
+  }
+}
+
+// =====================================================================
+// PROGRESS TRACKER (SSE)
+// =====================================================================
+function trackProgress(jobId, platform, type) {
+  // type: 'dl' | 'trans'
+  const prefix = platform;
+  const fillId   = type === 'dl' ? `${prefix}-prog-fill`  : `${prefix}-trans-fill`;
+  const msgId    = type === 'dl' ? `${prefix}-prog-msg`   : `${prefix}-trans-msg`;
+  const pctId    = type === 'dl' ? `${prefix}-prog-pct`   : `${prefix}-trans-pct`;
+  const speedId  = type === 'dl' ? `${prefix}-prog-speed` : null;
+  const etaId    = type === 'dl' ? `${prefix}-prog-eta`   : null;
+  const cardId   = type === 'dl' ? `${prefix}-progress-card` : `${prefix}-trans-progress`;
+
+  const es = new EventSource(`/job_status/${jobId}`);
+
+  es.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+
+    document.getElementById(fillId).style.width = `${d.percent || 0}%`;
+    document.getElementById(msgId).textContent = d.msg || '';
+    document.getElementById(pctId).textContent = `${Math.round(d.percent || 0)}%`;
+
+    if (speedId && d.speed) document.getElementById(speedId).textContent = d.speed;
+    if (etaId && d.eta)     document.getElementById(etaId).textContent = d.eta;
+
+    if (d.done) {
+      es.close();
+
+      if (d.error || d.status === 'error') {
+        document.getElementById(cardId).classList.remove('visible');
+        if (type === 'dl') {
+          document.getElementById(`${prefix}-progress-card`).classList.remove(`downloading-${prefix}`);
+          showAlert(`${prefix}-load-alert`, `Error: ${d.error}`, 'err');
+          setBtn(`${prefix}-dl-btn`, '⬇ DOWNLOAD', false);
+        } else {
+          showAlert(`${prefix}-trans-alert`, `Error: ${d.error}`, 'err');
+          setBtn(`${prefix}-trans-btn`, '⌨ TRANSCRIBE VIDEO', false);
+        }
+        return;
+      }
+
+      if (type === 'dl') {
+        // Trigger file download
+        document.getElementById(`${prefix}-prog-msg`).textContent = 'Done! Downloading file…';
+        document.getElementById(`${prefix}-prog-fill`).style.width = '100%';
+        setTimeout(() => {
+          const a = document.createElement('a');
+          a.href = `/download_file/${jobId}`;
+          a.click();
+          document.getElementById(`${prefix}-progress-card`).classList.remove('visible', `downloading-${prefix}`);
+          const btn = document.getElementById(`${prefix}-dl-btn`);
+          btn.textContent = '⬇ DOWNLOAD';
+          btn.disabled = false;
+          btn.classList.add('ready-flash');
+          setTimeout(() => btn.classList.remove('ready-flash'), 3100);
+        }, 600);
+      } else {
+        // Show transcript
+        document.getElementById(`${prefix}-trans-progress`).classList.remove('visible');
+        const box = document.getElementById(`${prefix}-transcript`);
+        box.textContent = d.transcript || '(No transcript generated)';
+        box.classList.add('visible');
+        document.getElementById(`${prefix}-trans-actions`).style.display = 'flex';
+        setBtn(`${prefix}-trans-btn`, '⌨ TRANSCRIBE VIDEO', false);
+      }
+    }
+  };
+
+  es.onerror = () => {
+    es.close();
+    document.getElementById(cardId).classList.remove('visible');
+    if (type === 'dl') {
+      showAlert(`${prefix}-load-alert`, 'Connection lost. Try again.', 'err');
+      setBtn(`${prefix}-dl-btn`, '⬇ DOWNLOAD', false);
+    } else {
+      showAlert(`${prefix}-trans-alert`, 'Connection lost. Try again.', 'err');
+      setBtn(`${prefix}-trans-btn`, '⌨ TRANSCRIBE VIDEO', false);
+    }
+  };
+}
+
+// =====================================================================
+// TRANSCRIPT UTILS
+// =====================================================================
+function copyTranscript(platform) {
+  const text = document.getElementById(`${platform}-transcript`).textContent;
+  navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard!'));
+}
+
+function downloadTranscript(platform) {
+  const text = document.getElementById(`${platform}-transcript`).textContent;
+  const title = document.getElementById(`${platform}-title`).textContent || 'transcript';
+  const blob = new Blob([text], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${title.slice(0,60)}.txt`;
+  a.click();
+}
+
+// =====================================================================
+// BITRATE PILL CLICK HANDLERS
+// =====================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.bitrate-opt').forEach(pill => {
+    pill.addEventListener('click', () => {
+      const platform = pill.dataset.platform;
+      const selClass = `selected-${platform}`;
+      document.querySelectorAll(`.bitrate-opt[data-platform="${platform}"]`)
+        .forEach(p => p.classList.remove(selClass));
+      pill.classList.add(selClass);
+      pill.querySelector('input[type="radio"]').checked = true;
+    });
+  });
+});
+
+// =====================================================================
+// KEYBOARD SHORTCUTS
+// =====================================================================
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.id === 'yt-url') ytLoadInfo();
+  if (e.key === 'Enter' && e.target.id === 'tt-url') ttLoadInfo();
+  if (e.key === 'Enter' && e.target.id === 'ig-url') igLoadInfo();
+});
+</script>
+</body>
+</html>
