@@ -104,7 +104,7 @@ def ydl_base_opts(progress_cb=None):
 
 
 def safe(s: str) -> str:
-    return ''.join(c for c in s if c not in r'\/:*?"<>|').strip()
+    return ''.join(c for c in s if c not in r'\/:*?"<>|' and ord(c) >= 32).strip()
 
 
 def sz_bytes_est(fmt: dict, duration: float) -> int:
@@ -462,6 +462,15 @@ def download_one(url: str, height: int, audio_only: bool, do_trim: bool,
         )
         opts['format_sort'] = ['res:desc', 'ext:mp4:m4a', 'vcodec:h264', 'acodec:aac', 'br:desc']
 
+        # For trimmed downloads, let yt-dlp fetch only the needed segment
+        if do_trim and (t_start is not None or t_end is not None):
+            from yt_dlp.utils import download_range_func
+            opts['download_ranges'] = download_range_func(None, [(t_start or 0, t_end or float('inf'))])
+            opts['force_keyframes_at_cuts'] = True
+            # aria2c doesn't support range downloads reliably
+            opts.pop('external_downloader', None)
+            opts.pop('external_downloader_args', None)
+
         # Determine if re-encode needed from format metadata
         fmts = info.get('formats', [])
         best_fmt = None
@@ -476,10 +485,12 @@ def download_one(url: str, height: int, audio_only: bool, do_trim: bool,
     raw_path = find_existing(raw_tpl)
     final_mp4 = os.path.join(work, f'{stub}.mp4')
 
+    # If yt-dlp's download_ranges already trimmed the segment, don't re-apply timestamps
+    ydlp_trimmed = do_trim and 'download_ranges' in opts
     encode_mp4(
         raw_path, final_mp4,
-        t_start if do_trim else None,
-        t_end if do_trim else None,
+        None if ydlp_trimmed else (t_start if do_trim else None),
+        None if ydlp_trimmed else (t_end if do_trim else None),
         reencode, job_id,
         audio_bitrate=audio_bitrate,
     )
